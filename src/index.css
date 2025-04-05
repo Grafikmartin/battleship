@@ -1,0 +1,117 @@
+/* src/styles.css */
+.game-container {
+  font-family: Arial, sans-serif;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.status-bar {
+  background-color: #f0f0f0;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.instructions {
+  background-color: #e6f7ff;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.game-boards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 30px;
+}
+
+.board-container {
+  text-align: center;
+}
+
+.board-title {
+  margin-bottom: 10px;
+}
+
+.game-board {
+  display: inline-block;
+  background: #333;
+  padding: 5px;
+  border-radius: 4px;
+}
+
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 30px);
+  grid-template-rows: repeat(10, 30px);
+  gap: 2px;
+}
+
+.cell {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  border: 1px solid #333;
+}
+
+.cell-water {
+  background-color: #2196f3;
+}
+
+.cell-ship {
+  background-color: #555;
+}
+
+.cell-hit {
+  background-color: #f44336;
+}
+
+.cell-miss {
+  background-color: #ccc;
+}
+
+.hidden-ship {
+  background-color: #2196f3; /* Gleiche Farbe wie Wasser, um Schiffe zu verstecken */
+}
+
+.new-game-button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  text-align: center;
+  font-size: 16px;
+  margin-top: 20px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.board-indicator {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background-color: #f44336;
+  color: white;
+  padding: 5px;
+  border-radius: 50%;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
