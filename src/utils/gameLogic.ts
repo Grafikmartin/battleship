@@ -3,6 +3,7 @@ import { GameState, GameBoard, Ship, CellState } from '../types';
 import playerShotSound from '../assets/sounds/cannon-shot.mp3';
 import computerShotSound from '../assets/sounds/shot_KI.mp3';
 import hitSound from '../assets/sounds/Treffer.mp3';
+import sinkSound from '../assets/sounds/untergang.mp3';
 
 const BOARD_SIZE = 10;
 const SHIPS = [
@@ -13,11 +14,11 @@ const SHIPS = [
 ];
 
 // Sound effects
+// Verwende absolute Pfade für die Sounddateien
 const PLAYER_SHOT_SOUND = new Audio(playerShotSound);
 const COMPUTER_SHOT_SOUND = new Audio(computerShotSound);
 const HIT_SOUND = new Audio(hitSound);
-
-
+const SINK_SOUND = new Audio(sinkSound);
 
 // Helper function to play a sound and return a promise that resolves when the sound finishes
 const playSound = (sound: HTMLAudioElement): Promise<void> => {
@@ -204,6 +205,12 @@ export const handlePlayerMove = async (gameState: GameState, row: number, col: n
             updatedShip.positions.forEach(([r, c]) => {
               newGameState.computerBoard[r][c] = 'sunk';
             });
+            // Play sink sound
+            try {
+              await playSound(SINK_SOUND);
+            } catch (error) {
+              console.error('Error playing sink sound:', error);
+            }
           }
           break;
         }
@@ -402,6 +409,12 @@ const processComputerShot = async (gameState: GameState): Promise<GameState> => 
             updatedShip.positions.forEach(([r, c]) => {
               newGameState.playerBoard[r][c] = 'sunk';
             });
+            // Play sink sound
+            try {
+              await playSound(SINK_SOUND);
+            } catch (error) {
+              console.error('Error playing sink sound:', error);
+            }
             // Reset lastHit since this ship is sunk
             newGameState.lastHit = null;
           }
@@ -432,19 +445,33 @@ export const handleComputerMove = async (gameState: GameState): Promise<GameStat
 
   let newGameState = { ...gameState, isProcessingMove: true };
   
-  // Computer gets 3 shots per turn
-  const shotsToTake = newGameState.computerRemainingShots ?? 3;
-  for (let shot = 0; shot < shotsToTake; shot++) {
-    if (newGameState.gameOver) break;
-    
+  // Prozessiere nur einen Schuss und gib den Zustand zurück
+  if (newGameState.computerRemainingShots > 0) {
     // Process a single shot and wait for it to complete (including sound)
     newGameState = await processComputerShot(newGameState);
-  }
-  
-  // Switch turn if game is not over
-  if (!newGameState.gameOver) {
-    newGameState.isPlayerTurn = true;
-    newGameState.remainingShots = 3;  // Reset player's shots
+    
+    // Wenn noch Schüsse übrig sind und das Spiel nicht vorbei ist,
+    // gib den aktuellen Zustand zurück und lass die KI später weiterschießen
+    if (newGameState.computerRemainingShots > 0 && !newGameState.gameOver) {
+      setTimeout(() => {
+        // Hier verwenden wir ein CustomEvent, um den nächsten Schuss zu triggern
+        window.dispatchEvent(new CustomEvent('updateGameState', { 
+          detail: { ...newGameState, isProcessingMove: false } 
+        }));
+        
+        // Nach einer kurzen Pause den nächsten Schuss auslösen
+        setTimeout(async () => {
+          const nextState = await handleComputerMove(newGameState);
+          window.dispatchEvent(new CustomEvent('updateGameState', { detail: nextState }));
+        }, 750);
+      }, 0);
+    } else {
+      // Wenn keine Schüsse mehr übrig sind oder das Spiel vorbei ist
+      if (!newGameState.gameOver) {
+        newGameState.isPlayerTurn = true;
+        newGameState.remainingShots = 3;  // Reset player's shots
+      }
+    }
   }
   
   // Move processing is complete

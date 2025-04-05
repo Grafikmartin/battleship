@@ -1,11 +1,23 @@
 // battleship/src/App.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { initializeGame, handlePlayerMove, handleComputerMove } from './utils/gameLogic';
 import { GameState, CellState } from './types';
 import './App.css';
 
 function App() {
   const [gameState, setGameState] = useState<GameState>(() => initializeGame());
+
+  useEffect(() => {
+    const handleGameStateUpdate = (event: CustomEvent<GameState>) => {
+      setGameState(event.detail);
+    };
+
+    window.addEventListener('updateGameState', handleGameStateUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('updateGameState', handleGameStateUpdate as EventListener);
+    };
+  }, []);
 
   const handleCellClick = async (row: number, col: number) => {
     if (!gameState.isPlayerTurn || gameState.gameOver || gameState.isProcessingMove) return;
@@ -14,12 +26,12 @@ function App() {
     const newState = await handlePlayerMove(gameState, row, col);
     setGameState(newState);
     
-    // Handle computer's move after a short delay
+    // Handle computer's move after a 1 second delay if it's the computer's turn
     if (!newState.gameOver && !newState.isPlayerTurn) {
       setTimeout(async () => {
         const computerMoveState = await handleComputerMove(newState);
         setGameState(computerMoveState);
-      }, 500);
+      }, 1000);
     }
   };
 
@@ -65,7 +77,6 @@ function App() {
   };
 
   const renderBoard = (board: CellState[][], isPlayerBoard: boolean) => {
-    // Sicherstellen, dass board definiert ist
     if (!board) return <div>Lade Spielfeld...</div>;
     
     return (
