@@ -7,17 +7,18 @@ import './App.css';
 function App() {
   const [gameState, setGameState] = useState<GameState>(() => initializeGame());
 
-  const handleCellClick = (row: number, col: number) => {
-    if (!gameState.isPlayerTurn || gameState.gameOver) return;
+  const handleCellClick = async (row: number, col: number) => {
+    if (!gameState.isPlayerTurn || gameState.gameOver || gameState.isProcessingMove) return;
 
     // Handle player's move
-    const newState = handlePlayerMove(gameState, row, col);
+    const newState = await handlePlayerMove(gameState, row, col);
     setGameState(newState);
     
     // Handle computer's move after a short delay
     if (!newState.gameOver && !newState.isPlayerTurn) {
-      setTimeout(() => {
-        setGameState(currentState => handleComputerMove(currentState));
+      setTimeout(async () => {
+        const computerMoveState = await handleComputerMove(newState);
+        setGameState(computerMoveState);
       }, 500);
     }
   };
@@ -64,6 +65,9 @@ function App() {
   };
 
   const renderBoard = (board: CellState[][], isPlayerBoard: boolean) => {
+    // Sicherstellen, dass board definiert ist
+    if (!board) return <div>Lade Spielfeld...</div>;
+    
     return (
       <div className="game-board">
         <div className="board-grid">

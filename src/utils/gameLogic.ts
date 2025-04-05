@@ -1,5 +1,8 @@
 // battleship/src/utils/gameLogic.ts
 import { GameState, GameBoard, Ship, CellState } from '../types';
+import playerShotSound from '../assets/sounds/cannon-shot.mp3';
+import computerShotSound from '../assets/sounds/shot_KI.mp3';
+import hitSound from '../assets/sounds/Treffer.mp3';
 
 const BOARD_SIZE = 10;
 const SHIPS = [
@@ -9,14 +12,59 @@ const SHIPS = [
   { length: 2, count: 1 },
 ];
 
+// Sound effects
+const PLAYER_SHOT_SOUND = new Audio(playerShotSound);
+const COMPUTER_SHOT_SOUND = new Audio(computerShotSound);
+const HIT_SOUND = new Audio(hitSound);
+
+
+
+// Helper function to play a sound and return a promise that resolves when the sound finishes
+const playSound = (sound: HTMLAudioElement): Promise<void> => {
+  return new Promise((resolve) => {
+    try {
+      sound.currentTime = 0; // Reset sound to beginning
+      
+      // Add error handling for sound play
+      const playPromise = sound.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            // Sound started playing successfully
+            sound.onended = () => resolve();
+          })
+          .catch(error => {
+            console.error('Error playing sound:', error);
+            // Resolve immediately if there's an error playing the sound
+            resolve();
+          });
+      } else {
+        // For browsers where play() doesn't return a promise
+        sound.onended = () => resolve();
+      }
+    } catch (error) {
+      console.error('Error setting up sound:', error);
+      // Resolve immediately if there's an error
+      resolve();
+    }
+  });
+};
+
 export const initializeGame = (): GameState => {
   const playerBoard = createEmptyBoard();
   const computerBoard = createEmptyBoard();
   const playerShips = placeShips(playerBoard);
   const computerShips = placeShips(computerBoard);
 
-  const savedBestScore = localStorage.getItem('bestScore');
-  const bestScore = savedBestScore ? Number(savedBestScore) : null;
+  // Sicherer Zugriff auf localStorage mit try-catch
+  let bestScore = null;
+  try {
+    const savedBestScore = localStorage.getItem('bestScore');
+    bestScore = savedBestScore ? Number(savedBestScore) : null;
+  } catch (error) {
+    console.error('localStorage is not available:', error);
+  }
 
   return {
     playerBoard,
@@ -30,7 +78,8 @@ export const initializeGame = (): GameState => {
     winner: null,
     remainingShots: 3,  // Initialize with 3 shots
     computerRemainingShots: 3,  // Computer also gets 3 shots
-    lastHit: null  // Track last hit for computer AI
+    lastHit: null,  // Track last hit for computer AI
+    isProcessingMove: false  // Flag to track if a move is being processed
   };
 };
 
@@ -97,7 +146,7 @@ const placeShips = (board: GameBoard): Ship[] => {
         
         if (canPlaceShip(board, row, col, length, horizontal)) {
           const positions = placeShip(board, row, col, length, horizontal);
-          ships.push({ length, positions, hits: 0 });
+          ships.push({ length, positions, hits: 0, isSunk: false });
           placed = true;
         }
       }
@@ -107,16 +156,17 @@ const placeShips = (board: GameBoard): Ship[] => {
   return ships;
 };
 
-export const handlePlayerMove = (gameState: GameState, row: number, col: number): GameState => {
+export const handlePlayerMove = async (gameState: GameState, row: number, col: number): Promise<GameState> => {
   if (gameState.computerBoard[row][col] === 'hit' || 
       gameState.computerBoard[row][col] === 'miss' || 
       gameState.computerBoard[row][col] === 'sunk' ||
       !gameState.isPlayerTurn || 
-      gameState.remainingShots === 0) {
+      gameState.remainingShots === 0 ||
+      gameState.isProcessingMove) {
     return gameState;
   }
 
-  const newGameState = { ...gameState };
+  const newGameState = { ...gameState, isProcessingMove: true };
   newGameState.shots++;
   newGameState.remainingShots--;  // Decrease remaining shots
 
@@ -124,6 +174,19 @@ export const handlePlayerMove = (gameState: GameState, row: number, col: number)
   newGameState.computerBoard = [...gameState.computerBoard];
   newGameState.computerBoard[row] = [...gameState.computerBoard[row]];
   newGameState.computerBoard[row][col] = isHit ? 'hit' : 'miss';
+
+  // Play appropriate sound
+  try {
+    // Play player shot sound first
+    await playSound(PLAYER_SHOT_SOUND);
+    
+    // If it's a hit, play the hit sound
+    if (isHit) {
+      await playSound(HIT_SOUND);
+    }
+  } catch (error) {
+    console.error('Error playing sound:', error);
+  }
 
   if (isHit) {
     const newComputerShips = [...gameState.computerShips];
@@ -154,9 +217,13 @@ export const handlePlayerMove = (gameState: GameState, row: number, col: number)
     newGameState.gameOver = true;
     newGameState.winner = 'player';
 
-    if (newGameState.bestScore === null || newGameState.shots < newGameState.bestScore) {
-      newGameState.bestScore = newGameState.shots;
-      localStorage.setItem('bestScore', newGameState.shots.toString());
+    try {
+      if (newGameState.bestScore === null || newGameState.shots < newGameState.bestScore) {
+        newGameState.bestScore = newGameState.shots;
+        localStorage.setItem('bestScore', newGameState.shots.toString());
+      }
+    } catch (error) {
+      console.error('localStorage is not available:', error);
     }
   } else if (newGameState.remainingShots === 0) {
     // Only switch turns when all shots are used
@@ -164,6 +231,9 @@ export const handlePlayerMove = (gameState: GameState, row: number, col: number)
     newGameState.computerRemainingShots = 3;  // Reset computer's shots
   }
 
+  // Move processing is complete
+  newGameState.isProcessingMove = false;
+  
   return newGameState;
 };
 
@@ -189,7 +259,7 @@ const findNextTarget = (gameState: GameState): [number, number] => {
     let hitShip: Ship | undefined;
     for (const ship of gameState.playerShips) {
       for (const [shipRow, shipCol] of ship.positions) {
-        if (shipRow === lastHitRow && shipCol === lastHitCol && !ship.isSunk) {
+        if (shipRow === lastHitRow && shipCol === lastHitCol && ship.isSunk !== true) {
           hitShip = ship;
           break;
         }
@@ -198,7 +268,7 @@ const findNextTarget = (gameState: GameState): [number, number] => {
     }
     
     // If we found a ship and it's not sunk, try to find other parts of it
-    if (hitShip && !hitShip.isSunk) {
+    if (hitShip && hitShip.isSunk !== true) {
       // Find other hits on the same ship to determine orientation
       const hitPositions = hitShip.positions.filter(([r, c]) => 
         playerBoard[r][c] === 'hit'
@@ -213,40 +283,48 @@ const findNextTarget = (gameState: GameState): [number, number] => {
         if (isHorizontal) {
           // Find the leftmost and rightmost hit positions
           const cols = hitPositions.map(([_, c]) => c).sort((a, b) => a - b);
-          const minCol = cols[0];
-          const maxCol = cols[cols.length - 1];
           
-          // Try left side
-          if (minCol > 0 && playerBoard[lastHitRow][minCol - 1] !== 'hit' && 
-              playerBoard[lastHitRow][minCol - 1] !== 'miss' && 
-              playerBoard[lastHitRow][minCol - 1] !== 'sunk') {
-            return [lastHitRow, minCol - 1];
-          }
-          
-          // Try right side
-          if (maxCol < BOARD_SIZE - 1 && playerBoard[lastHitRow][maxCol + 1] !== 'hit' && 
-              playerBoard[lastHitRow][maxCol + 1] !== 'miss' && 
-              playerBoard[lastHitRow][maxCol + 1] !== 'sunk') {
-            return [lastHitRow, maxCol + 1];
+          // Make sure we have valid indices before accessing
+          if (cols.length > 0) {
+            const minCol = cols[0];
+            const maxCol = cols[cols.length - 1];
+            
+            // Try left side
+            if (minCol > 0 && playerBoard[lastHitRow][minCol - 1] !== 'hit' && 
+                playerBoard[lastHitRow][minCol - 1] !== 'miss' && 
+                playerBoard[lastHitRow][minCol - 1] !== 'sunk') {
+              return [lastHitRow, minCol - 1];
+            }
+            
+            // Try right side
+            if (maxCol < BOARD_SIZE - 1 && playerBoard[lastHitRow][maxCol + 1] !== 'hit' && 
+                playerBoard[lastHitRow][maxCol + 1] !== 'miss' && 
+                playerBoard[lastHitRow][maxCol + 1] !== 'sunk') {
+              return [lastHitRow, maxCol + 1];
+            }
           }
         } else {
           // Find the topmost and bottommost hit positions
           const rows = hitPositions.map(([r, _]) => r).sort((a, b) => a - b);
-          const minRow = rows[0];
-          const maxRow = rows[rows.length - 1];
           
-          // Try top side
-          if (minRow > 0 && playerBoard[minRow - 1][lastHitCol] !== 'hit' && 
-              playerBoard[minRow - 1][lastHitCol] !== 'miss' && 
-              playerBoard[minRow - 1][lastHitCol] !== 'sunk') {
-            return [minRow - 1, lastHitCol];
-          }
-          
-          // Try bottom side
-          if (maxRow < BOARD_SIZE - 1 && playerBoard[maxRow + 1][lastHitCol] !== 'hit' && 
-              playerBoard[maxRow + 1][lastHitCol] !== 'miss' && 
-              playerBoard[maxRow + 1][lastHitCol] !== 'sunk') {
-            return [maxRow + 1, lastHitCol];
+          // Make sure we have valid indices before accessing
+          if (rows.length > 0) {
+            const minRow = rows[0];
+            const maxRow = rows[rows.length - 1];
+            
+            // Try top side
+            if (minRow > 0 && playerBoard[minRow - 1][lastHitCol] !== 'hit' && 
+                playerBoard[minRow - 1][lastHitCol] !== 'miss' && 
+                playerBoard[minRow - 1][lastHitCol] !== 'sunk') {
+              return [minRow - 1, lastHitCol];
+            }
+            
+            // Try bottom side
+            if (maxRow < BOARD_SIZE - 1 && playerBoard[maxRow + 1][lastHitCol] !== 'hit' && 
+                playerBoard[maxRow + 1][lastHitCol] !== 'miss' && 
+                playerBoard[maxRow + 1][lastHitCol] !== 'sunk') {
+              return [maxRow + 1, lastHitCol];
+            }
           }
         }
       }
@@ -276,65 +354,91 @@ const findNextTarget = (gameState: GameState): [number, number] => {
   return [row, col];
 };
 
-export const handleComputerMove = (gameState: GameState): GameState => {
-  if (gameState.isPlayerTurn || gameState.gameOver) {
+// Helper function to process a single computer shot
+const processComputerShot = async (gameState: GameState): Promise<GameState> => {
+  const newGameState = { ...gameState };
+  
+  // Find the next target
+  const [row, col] = findNextTarget(newGameState);
+  
+  // Check if the shot hit a ship
+  const isHit = newGameState.playerBoard[row][col] === 'ship';
+  newGameState.playerBoard = [...newGameState.playerBoard];
+  newGameState.playerBoard[row] = [...newGameState.playerBoard[row]];
+  newGameState.playerBoard[row][col] = isHit ? 'hit' : 'miss';
+  
+  // Play appropriate sound
+  try {
+    // Play computer shot sound first
+    await playSound(COMPUTER_SHOT_SOUND);
+    
+    // If it's a hit, play the hit sound
+    if (isHit) {
+      await playSound(HIT_SOUND);
+    }
+  } catch (error) {
+    console.error('Error playing sound:', error);
+  }
+  
+  // Update lastHit if it was a hit
+  if (isHit) {
+    newGameState.lastHit = [row, col];
+  }
+
+  // Update ship status if hit
+  if (isHit) {
+    const newPlayerShips = [...newGameState.playerShips];
+    for (let i = 0; i < newPlayerShips.length; i++) {
+      const ship = newPlayerShips[i];
+      for (const [shipRow, shipCol] of ship.positions) {
+        if (shipRow === row && shipCol === col) {
+          const updatedShip = { ...ship, hits: ship.hits + 1 };
+          newPlayerShips[i] = updatedShip;
+          
+          // Check if ship is sunk
+          if (updatedShip.hits === updatedShip.length) {
+            updatedShip.isSunk = true;
+            // Mark all ship positions as sunk
+            updatedShip.positions.forEach(([r, c]) => {
+              newGameState.playerBoard[r][c] = 'sunk';
+            });
+            // Reset lastHit since this ship is sunk
+            newGameState.lastHit = null;
+          }
+          break;
+        }
+      }
+    }
+    newGameState.playerShips = newPlayerShips;
+  }
+
+  // Check if game is over
+  const allPlayerShipsSunk = newGameState.playerShips.every(ship => ship.hits === ship.length);
+  if (allPlayerShipsSunk) {
+    newGameState.gameOver = true;
+    newGameState.winner = 'computer';
+  }
+  
+  // Decrease remaining shots
+  newGameState.computerRemainingShots = (newGameState.computerRemainingShots ?? 3) - 1;
+  
+  return newGameState;
+};
+
+export const handleComputerMove = async (gameState: GameState): Promise<GameState> => {
+  if (gameState.isPlayerTurn || gameState.gameOver || gameState.isProcessingMove) {
     return gameState;
   }
 
-  let newGameState = { ...gameState };
+  let newGameState = { ...gameState, isProcessingMove: true };
   
   // Computer gets 3 shots per turn
-  for (let shot = 0; shot < 3; shot++) {
+  const shotsToTake = newGameState.computerRemainingShots ?? 3;
+  for (let shot = 0; shot < shotsToTake; shot++) {
     if (newGameState.gameOver) break;
     
-    // Find the next target
-    const [row, col] = findNextTarget(newGameState);
-    
-    // Check if the shot hit a ship
-    const isHit = newGameState.playerBoard[row][col] === 'ship';
-    newGameState.playerBoard = [...newGameState.playerBoard];
-    newGameState.playerBoard[row] = [...newGameState.playerBoard[row]];
-    newGameState.playerBoard[row][col] = isHit ? 'hit' : 'miss';
-    
-    // Update lastHit if it was a hit
-    if (isHit) {
-      newGameState.lastHit = [row, col];
-    }
-
-    // Update ship status if hit
-    if (isHit) {
-      const newPlayerShips = [...newGameState.playerShips];
-      for (let i = 0; i < newPlayerShips.length; i++) {
-        const ship = newPlayerShips[i];
-        for (const [shipRow, shipCol] of ship.positions) {
-          if (shipRow === row && shipCol === col) {
-            const updatedShip = { ...ship, hits: ship.hits + 1 };
-            newPlayerShips[i] = updatedShip;
-            
-            // Check if ship is sunk
-            if (updatedShip.hits === updatedShip.length) {
-              updatedShip.isSunk = true;
-              // Mark all ship positions as sunk
-              updatedShip.positions.forEach(([r, c]) => {
-                newGameState.playerBoard[r][c] = 'sunk';
-              });
-              // Reset lastHit since this ship is sunk
-              newGameState.lastHit = null;
-            }
-            break;
-          }
-        }
-      }
-      newGameState.playerShips = newPlayerShips;
-    }
-
-    // Check if game is over
-    const allPlayerShipsSunk = newGameState.playerShips.every(ship => ship.hits === ship.length);
-    if (allPlayerShipsSunk) {
-      newGameState.gameOver = true;
-      newGameState.winner = 'computer';
-      break;
-    }
+    // Process a single shot and wait for it to complete (including sound)
+    newGameState = await processComputerShot(newGameState);
   }
   
   // Switch turn if game is not over
@@ -342,6 +446,9 @@ export const handleComputerMove = (gameState: GameState): GameState => {
     newGameState.isPlayerTurn = true;
     newGameState.remainingShots = 3;  // Reset player's shots
   }
+  
+  // Move processing is complete
+  newGameState.isProcessingMove = false;
 
   return newGameState;
 };

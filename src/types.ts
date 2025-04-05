@@ -23,4 +23,5 @@ export type GameState = {
   remainingShots: number;  // Property for tracking player's remaining shots
   computerRemainingShots?: number;  // Property for tracking computer's remaining shots
   lastHit?: [number, number] | null;  // Track last hit position for computer AI
+  isProcessingMove?: boolean;  // Flag to track if a move is being processed
 };
