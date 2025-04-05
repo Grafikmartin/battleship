@@ -7,6 +7,7 @@ import './App.css';
 function App() {
   const [gameState, setGameState] = useState<GameState>(() => initializeGame());
   const [fadeState, setFadeState] = useState<'in' | 'out' | 'none'>('none');
+  const [showInstructions, setShowInstructions] = useState(false);
 
   useEffect(() => {
     const handleGameStateUpdate = (event: CustomEvent<GameState>) => {
@@ -18,7 +19,7 @@ function App() {
         setTimeout(() => {
           setGameState(event.detail);
           setFadeState('in');
-        }, 500); // Dauer des Ausblendens
+        }, 200); // Dauer des Ausblendens
       } else {
         // Wenn sich der aktive Spieler nicht ändert, aktualisieren wir den Zustand direkt
         setGameState(event.detail);
@@ -34,12 +35,12 @@ function App() {
 
   const handleCellClick = async (row: number, col: number) => {
     if (!gameState.isPlayerTurn || gameState.gameOver || gameState.isProcessingMove) return;
-
+  
     // Handle player's move
     const newState = await handlePlayerMove(gameState, row, col);
     setGameState(newState);
     
-    // Handle computer's move after a 2 second delay if it's the computer's turn
+    // Handle computer's move after a shorter delay if it's the computer's turn
     if (!newState.gameOver && !newState.isPlayerTurn) {
       // Fade-Animation starten
       setFadeState('out');
@@ -48,9 +49,10 @@ function App() {
         const computerMoveState = await handleComputerMove(newState);
         setGameState(computerMoveState);
         setFadeState('in');
-      }, 2000); // Erhöht auf 2 Sekunden
+      }, 500); // Reduziert auf 500ms
     }
   };
+  
 
   const renderCell = (cellState: CellState, row: number, col: number, isPlayerBoard: boolean) => {
     let cellClass = 'cell ';
@@ -135,11 +137,21 @@ function App() {
         )}
       </div>
       
-      <div className="instructions">
-        <p><strong>So spielst du:</strong></p>
-        <p>Klicke auf das Computer-Brett, um darauf zu schießen.</p>
-        <p>Du hast {gameState.remainingShots} Schüsse pro Runde!</p>
-        <p>Triff alle Schiffe des Computers, bevor er deine Schiffe versenkt!</p>
+      <div className="instructions-container">
+        <button 
+          className="instructions-toggle"
+          onClick={() => setShowInstructions(!showInstructions)}
+        >
+          <span className="material-icons">help</span>
+        </button>
+        {showInstructions && (
+          <div className="instructions">
+            <p><strong>So spielst du:</strong></p>
+            <p>Klicke auf das Computer-Brett, um darauf zu schießen.</p>
+            <p>Du hast {gameState.remainingShots} Schüsse pro Runde!</p>
+            <p>Triff alle Schiffe des Computers, bevor er deine Schiffe versenkt!</p>
+          </div>
+        )}
       </div>
       
       <div className="game-boards">
