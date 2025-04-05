@@ -6,10 +6,23 @@ import './App.css';
 
 function App() {
   const [gameState, setGameState] = useState<GameState>(() => initializeGame());
+  const [fadeState, setFadeState] = useState<'in' | 'out' | 'none'>('none');
 
   useEffect(() => {
     const handleGameStateUpdate = (event: CustomEvent<GameState>) => {
-      setGameState(event.detail);
+      // Wenn sich der aktive Spieler ändert, starten wir die Fade-Animation
+      if (event.detail.isPlayerTurn !== gameState.isPlayerTurn) {
+        setFadeState('out');
+        
+        // Nach dem Ausblenden den Zustand aktualisieren und dann wieder einblenden
+        setTimeout(() => {
+          setGameState(event.detail);
+          setFadeState('in');
+        }, 500); // Dauer des Ausblendens
+      } else {
+        // Wenn sich der aktive Spieler nicht ändert, aktualisieren wir den Zustand direkt
+        setGameState(event.detail);
+      }
     };
 
     window.addEventListener('updateGameState', handleGameStateUpdate as EventListener);
@@ -17,7 +30,7 @@ function App() {
     return () => {
       window.removeEventListener('updateGameState', handleGameStateUpdate as EventListener);
     };
-  }, []);
+  }, [gameState.isPlayerTurn]);
 
   const handleCellClick = async (row: number, col: number) => {
     if (!gameState.isPlayerTurn || gameState.gameOver || gameState.isProcessingMove) return;
@@ -26,12 +39,16 @@ function App() {
     const newState = await handlePlayerMove(gameState, row, col);
     setGameState(newState);
     
-    // Handle computer's move after a 1 second delay if it's the computer's turn
+    // Handle computer's move after a 2 second delay if it's the computer's turn
     if (!newState.gameOver && !newState.isPlayerTurn) {
+      // Fade-Animation starten
+      setFadeState('out');
+      
       setTimeout(async () => {
         const computerMoveState = await handleComputerMove(newState);
         setGameState(computerMoveState);
-      }, 1000);
+        setFadeState('in');
+      }, 2000); // Erhöht auf 2 Sekunden
     }
   };
 
@@ -96,6 +113,13 @@ function App() {
     setGameState(initializeGame());
   };
 
+  // Bestimme, welches Spielfeld angezeigt werden soll
+  const activeBoard = gameState.isPlayerTurn ? gameState.computerBoard : gameState.playerBoard;
+  const isPlayerActive = gameState.isPlayerTurn;
+  
+  // CSS-Klasse für die Fade-Animation
+  const fadeClass = fadeState === 'none' ? '' : fadeState === 'in' ? 'fade-in' : 'fade-out';
+
   return (
     <div className="game-container">
       <div className="header">
@@ -106,9 +130,6 @@ function App() {
         <div>Schüsse: {gameState.shots}</div>
         <div>Verbleibende Schüsse: {gameState.remainingShots}</div>
         {gameState.bestScore !== null && <div>Bestleistung: {gameState.bestScore}</div>}
-        {!gameState.gameOver && (
-          <div><strong>{gameState.isPlayerTurn ? "Du bist dran!" : "Computer denkt nach..."}</strong></div>
-        )}
         {gameState.gameOver && gameState.winner && (
           <div><strong>{gameState.winner === 'player' ? "Du hast gewonnen!" : "Der Computer hat gewonnen!"}</strong></div>
         )}
@@ -116,24 +137,23 @@ function App() {
       
       <div className="instructions">
         <p><strong>So spielst du:</strong></p>
-        <p>Klicke auf das Computer-Brett (rechts), um darauf zu schießen.</p>
+        <p>Klicke auf das Computer-Brett, um darauf zu schießen.</p>
         <p>Du hast {gameState.remainingShots} Schüsse pro Runde!</p>
         <p>Triff alle Schiffe des Computers, bevor er deine Schiffe versenkt!</p>
       </div>
       
       <div className="game-boards">
         <div className="board-container">
-          <h2 className="board-title">Dein Spielfeld</h2>
-          {renderBoard(gameState.playerBoard, true)}
-        </div>
-        
-        <div className="board-container">
-          <h2 className="board-title">Computer-Spielfeld</h2>
-          <div style={{ position: 'relative' }}>
-            {renderBoard(gameState.computerBoard, false)}
-            {gameState.isPlayerTurn && (
-              <div className="board-indicator">➡️</div>
+          <h2 className="board-title">
+            {isPlayerActive ? "Computer-Spielfeld" : "Dein Spielfeld"}
+            {!gameState.gameOver && (
+              <div className="turn-indicator">
+                {isPlayerActive ? "Du bist dran!" : "Der Computer ist dran!"}
+              </div>
             )}
+          </h2>
+          <div className={`board-wrapper ${fadeClass}`}>
+            {renderBoard(activeBoard, !isPlayerActive)}
           </div>
         </div>
       </div>
