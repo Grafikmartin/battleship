@@ -68,7 +68,7 @@
 }
 
 .cell-water {
-  background-color: #2196f3;
+  background-color: #50abf5;
 }
 
 .cell-ship {
@@ -84,7 +84,7 @@
 }
 
 .hidden-ship {
-  background-color: #2196f3; /* Gleiche Farbe wie Wasser, um Schiffe zu verstecken */
+  background-color: #50abf5; /* Gleiche Farbe wie Wasser, um Schiffe zu verstecken */
 }
 
 .new-game-button {

@@ -1,6 +1,8 @@
+// battleship/src/App.tsx
 import { useState } from 'react';
 import { initializeGame, handlePlayerMove, handleComputerMove } from './utils/gameLogic';
 import { GameState, CellState } from './types';
+import './App.css';
 
 function App() {
   const [gameState, setGameState] = useState<GameState>(() => initializeGame());
@@ -24,7 +26,6 @@ function App() {
     let cellClass = 'cell ';
     let content = '';
 
-    // For computer board, don't show ships unless hit
     if (!isPlayerBoard && cellState === 'ship') {
       cellClass += 'cell-water';
     } else {
@@ -43,6 +44,10 @@ function App() {
         case 'miss':
           cellClass += 'cell-miss';
           content = '•';
+          break;
+        case 'sunk':
+          cellClass += 'cell-sunk';
+          content = '💥';
           break;
       }
     }
@@ -84,6 +89,7 @@ function App() {
       
       <div className="status-bar">
         <div>Schüsse: {gameState.shots}</div>
+        <div>Verbleibende Schüsse: {gameState.remainingShots}</div>
         {gameState.bestScore !== null && <div>Bestleistung: {gameState.bestScore}</div>}
         {!gameState.gameOver && (
           <div><strong>{gameState.isPlayerTurn ? "Du bist dran!" : "Computer denkt nach..."}</strong></div>
@@ -96,6 +102,7 @@ function App() {
       <div className="instructions">
         <p><strong>So spielst du:</strong></p>
         <p>Klicke auf das Computer-Brett (rechts), um darauf zu schießen.</p>
+        <p>Du hast {gameState.remainingShots} Schüsse pro Runde!</p>
         <p>Triff alle Schiffe des Computers, bevor er deine Schiffe versenkt!</p>
       </div>
       

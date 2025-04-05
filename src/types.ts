@@ -1,9 +1,11 @@
-export type CellState = 'water' | 'ship' | 'hit' | 'miss';
+// battleship/src/types.ts
+export type CellState = 'water' | 'ship' | 'hit' | 'miss' | 'sunk';  // Added 'sunk' state
 
 export type Ship = {
   length: number;
   positions: number[][];
   hits: number;
+  isSunk?: boolean;  // New property to track if ship is sunk
 };
 
 export type GameBoard = CellState[][];
@@ -18,4 +20,7 @@ export type GameState = {
   bestScore: number | null;
   gameOver: boolean;
   winner: 'player' | 'computer' | null;
+  remainingShots: number;  // Property for tracking player's remaining shots
+  computerRemainingShots?: number;  // Property for tracking computer's remaining shots
+  lastHit?: [number, number] | null;  // Track last hit position for computer AI
 };
