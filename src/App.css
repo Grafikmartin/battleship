@@ -150,3 +150,114 @@
   box-sizing: border-box;
   margin: 0;
 }
+/* App.css Ergänzungen */
+
+/* Cursor-Styles */
+.cell-targetable {
+  cursor: url('./assets/fokus.png') 16 16, crosshair;
+}
+
+/* Für den Computer-Ziel-Indikator */
+.cell-computer-target::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('./assets/fokus.png');
+  background-size: 80%;
+  background-position: center;
+  background-repeat: no-repeat;
+  animation: targetPulse 1s infinite;
+  pointer-events: none;
+}
+
+/* Gesunkene Schiffe */
+.cell-sunk {
+  background-color: #333;
+  animation: pulse 0.5s infinite;
+}
+
+/* Setup-Styles */
+.setup-container {
+  margin: 20px auto;
+  max-width: 800px;
+}
+
+.setup-controls {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.setup-area {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.ships-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  min-width: 200px;
+}
+
+.dock-ship {
+  background: #666;
+  cursor: move;
+  border-radius: 2px;
+  margin-bottom: 10px;
+  position: relative;
+}
+
+.dock-ship.horizontal {
+  height: 28px;
+}
+
+.dock-ship.vertical {
+  width: 28px;
+  height: auto;
+}
+
+.ship-length-5.horizontal { width: 150px; }
+.ship-length-4.horizontal { width: 120px; }
+.ship-length-3.horizontal { width: 90px; }
+.ship-length-2.horizontal { width: 60px; }
+
+.ship-length-5.vertical { height: 150px; }
+.ship-length-4.vertical { height: 120px; }
+.ship-length-3.vertical { height: 90px; }
+.ship-length-2.vertical { height: 60px; }
+
+.cell-preview-valid {
+  background: rgba(0, 255, 0, 0.3);
+}
+
+.cell-preview-invalid {
+  background: rgba(255, 0, 0, 0.3);
+}
+
+.dock-ship:hover {
+  background: #888;
+}
+
+.ship-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  cursor: move;
+}
+
+.start-game-button {
+  background-color: #4CAF50;
+  color: white;
+  font-weight: bold;
+}

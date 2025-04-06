@@ -1,29 +1,24 @@
 // battleship/src/App.tsx
 import { useState, useEffect } from 'react';
-import { initializeGame, handlePlayerMove, handleComputerMove } from './utils/gameLogic';
-import { GameState, CellState } from './types';
+import { initializeGame, handlePlayerMove, handleComputerMove, createEmptyBoard } from './utils/gameLogic';
+import { GameState, CellState, Ship, GameBoard } from './types';
+import { ShipSetup } from './components/ShipSetup';
 import './App.css';
+import fokusImage from './assets/fokus.png';
 
 function App() {
-  const [gameState, setGameState] = useState<GameState>(() => initializeGame());
-  const [fadeState, setFadeState] = useState<'in' | 'out' | 'none'>('none');
+  const [gameState, setGameState] = useState<GameState>(() => ({
+    ...initializeGame(),
+    setupPhase: true,
+  }));
   const [showInstructions, setShowInstructions] = useState(false);
 
   useEffect(() => {
     const handleGameStateUpdate = (event: CustomEvent<GameState>) => {
-      // Wenn sich der aktive Spieler ändert, starten wir die Fade-Animation
-      if (event.detail.isPlayerTurn !== gameState.isPlayerTurn) {
-        setFadeState('out');
-        
-        // Nach dem Ausblenden den Zustand aktualisieren und dann wieder einblenden
-        setTimeout(() => {
-          setGameState(event.detail);
-          setFadeState('in');
-        }, 200); // Dauer des Ausblendens
-      } else {
-        // Wenn sich der aktive Spieler nicht ändert, aktualisieren wir den Zustand direkt
-        setGameState(event.detail);
-      }
+      setGameState(prevState => ({
+        ...event.detail,
+        setupPhase: prevState.setupPhase
+      }));
     };
 
     window.addEventListener('updateGameState', handleGameStateUpdate as EventListener);
@@ -31,34 +26,62 @@ function App() {
     return () => {
       window.removeEventListener('updateGameState', handleGameStateUpdate as EventListener);
     };
-  }, [gameState.isPlayerTurn]);
+  }, []);
 
-// battleship/src/App.tsx - Modified handleCellClick function
-const handleCellClick = async (row: number, col: number) => {
-  if (!gameState.isPlayerTurn || gameState.gameOver || gameState.isProcessingMove) return;
-
-  // Handle player's move
-  const newState = await handlePlayerMove(gameState, row, col);
-  setGameState(newState);
-  
-  // Handle computer's move after a delay if it's the computer's turn
-  if (!newState.gameOver && !newState.isPlayerTurn) {
-    // Wait 1.5 seconds after the third shot before transitioning
-    const delayTime = 1500; // 1.5 seconds in milliseconds
+  const handleSetupComplete = (playerBoard: GameBoard, playerShips: Ship[]) => {
+    // Initialisiere das Spiel mit den vom Spieler platzierten Schiffen
+    const initialState = initializeGame();
     
-    // No fade animation - directly update the state after delay
-    setTimeout(async () => {
-      const computerMoveState = await handleComputerMove(newState);
-      setGameState(computerMoveState);
-    }, delayTime);
-  }
-};
+    setGameState({
+      ...initialState,
+      playerBoard,
+      playerShips,
+      setupPhase: false
+    });
+  };
 
+  // Wenn wir in der Setup-Phase sind, zeige die ShipSetup-Komponente
+  if (gameState.setupPhase) {
+    return <ShipSetup onComplete={handleSetupComplete} />;
+  }
+
+  const handleCellClick = async (row: number, col: number) => {
+    if (!gameState.isPlayerTurn || gameState.gameOver || gameState.isProcessingMove) return;
   
+    // Handle player's move
+    const newState = await handlePlayerMove(gameState, row, col);
+    setGameState(newState);
+    
+    // Handle computer's move after a delay if it's the computer's turn
+    if (!newState.gameOver && !newState.isPlayerTurn) {
+      const delayTime = 1500; // 1.5 Sekunden Verzögerung nach dem dritten Schuss
+      
+      setTimeout(async () => {
+        const computerMoveState = await handleComputerMove(newState);
+        setGameState(computerMoveState);
+      }, delayTime);
+    }
+  };
 
   const renderCell = (cellState: CellState, row: number, col: number, isPlayerBoard: boolean) => {
     let cellClass = 'cell ';
     let content = '';
+
+    // Prüfen ob Zelle anvisierbar ist
+    const isTargetable = !isPlayerBoard && 
+                        gameState.isPlayerTurn && 
+                        cellState !== 'hit' && 
+                        cellState !== 'miss' && 
+                        cellState !== 'sunk';
+
+    if (isTargetable) {
+      cellClass += 'cell-targetable ';
+    }
+
+    // Fadenkreuz für Computer-Ziel anzeigen
+    if (!gameState.isPlayerTurn && !isPlayerBoard && gameState.computerTarget === `${row}-${col}`) {
+      cellClass += 'cell-computer-target ';
+    }
 
     if (!isPlayerBoard && cellState === 'ship') {
       cellClass += 'cell-water';
@@ -114,15 +137,15 @@ const handleCellClick = async (row: number, col: number) => {
   };
 
   const startNewGame = () => {
-    setGameState(initializeGame());
+    setGameState({
+      ...initializeGame(),
+      setupPhase: true
+    });
   };
 
   // Bestimme, welches Spielfeld angezeigt werden soll
   const activeBoard = gameState.isPlayerTurn ? gameState.computerBoard : gameState.playerBoard;
   const isPlayerActive = gameState.isPlayerTurn;
-  
-  // CSS-Klasse für die Fade-Animation
-  const fadeClass = fadeState === 'none' ? '' : fadeState === 'in' ? 'fade-in' : 'fade-out';
 
   return (
     <div className="game-container">
@@ -166,7 +189,7 @@ const handleCellClick = async (row: number, col: number) => {
               </div>
             )}
           </h2>
-          <div className={`board-wrapper ${fadeClass}`}>
+          <div className="board-wrapper">
             {renderBoard(activeBoard, !isPlayerActive)}
           </div>
         </div>

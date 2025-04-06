@@ -1,14 +1,29 @@
 // battleship/src/types.ts
-export type CellState = 'water' | 'ship' | 'hit' | 'miss' | 'sunk';  // Added 'sunk' state
+export type CellState = 'water' | 'ship' | 'hit' | 'miss' | 'sunk' | 'invalid';  // Added 'invalid' state
 
 export type Ship = {
   length: number;
   positions: number[][];
   hits: number;
-  isSunk?: boolean;  // New property to track if ship is sunk
+  isSunk?: boolean;  // Property to track if ship is sunk
 };
 
 export type GameBoard = CellState[][];
+
+// Neue Typen für die Schiffsplatzierung
+export type ShipType = {
+  id: string;
+  length: number;
+  isPlaced: boolean;
+  orientation: 'horizontal' | 'vertical';
+  positions?: number[][];  // Optional für die Konvertierung zu Ship
+};
+
+export type DraggingState = {
+  shipId: string | null;
+  isValid: boolean;
+  position: { row: number; col: number } | null;
+};
 
 export type GameState = {
   playerBoard: GameBoard;
@@ -24,4 +39,8 @@ export type GameState = {
   computerRemainingShots?: number;  // Property for tracking computer's remaining shots
   lastHit?: [number, number] | null;  // Track last hit position for computer AI
   isProcessingMove?: boolean;  // Flag to track if a move is being processed
+  computerTarget?: string | null;  // Speichert die aktuelle Zielposition der KI
+  
+  // Neue Properties für die Schiffsplatzierung
+  setupPhase?: boolean;
 };
