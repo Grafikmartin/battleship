@@ -33,25 +33,27 @@ function App() {
     };
   }, [gameState.isPlayerTurn]);
 
-  const handleCellClick = async (row: number, col: number) => {
-    if (!gameState.isPlayerTurn || gameState.gameOver || gameState.isProcessingMove) return;
+// battleship/src/App.tsx - Modified handleCellClick function
+const handleCellClick = async (row: number, col: number) => {
+  if (!gameState.isPlayerTurn || gameState.gameOver || gameState.isProcessingMove) return;
+
+  // Handle player's move
+  const newState = await handlePlayerMove(gameState, row, col);
+  setGameState(newState);
   
-    // Handle player's move
-    const newState = await handlePlayerMove(gameState, row, col);
-    setGameState(newState);
+  // Handle computer's move after a delay if it's the computer's turn
+  if (!newState.gameOver && !newState.isPlayerTurn) {
+    // Wait 1.5 seconds after the third shot before transitioning
+    const delayTime = 1500; // 1.5 seconds in milliseconds
     
-    // Handle computer's move after a shorter delay if it's the computer's turn
-    if (!newState.gameOver && !newState.isPlayerTurn) {
-      // Fade-Animation starten
-      setFadeState('out');
-      
-      setTimeout(async () => {
-        const computerMoveState = await handleComputerMove(newState);
-        setGameState(computerMoveState);
-        setFadeState('in');
-      }, 500); // Reduziert auf 500ms
-    }
-  };
+    // No fade animation - directly update the state after delay
+    setTimeout(async () => {
+      const computerMoveState = await handleComputerMove(newState);
+      setGameState(computerMoveState);
+    }, delayTime);
+  }
+};
+
   
 
   const renderCell = (cellState: CellState, row: number, col: number, isPlayerBoard: boolean) => {
