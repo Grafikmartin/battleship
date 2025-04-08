@@ -1,10 +1,11 @@
 // battleship/src/App.tsx
-import { useState, useEffect } from 'react';
-import { initializeGame, handlePlayerMove, handleComputerMove, createEmptyBoard } from './utils/gameLogic';
+import React, { useState, useEffect } from 'react';
+import Game from './components/Game';
+import SoundToggle from './components/SoundToggle';
+import { initializeGame, handlePlayerMove, handleComputerMove } from './utils/gameLogic';
 import { GameState, CellState, Ship, GameBoard } from './types';
 import { ShipSetup } from './components/ShipSetup';
 import './App.css';
-import fokusImage from './assets/fokus.png';
 
 function App() {
   const [gameState, setGameState] = useState<GameState>(() => ({
@@ -40,41 +41,36 @@ function App() {
     });
   };
 
-  // Wenn wir in der Setup-Phase sind, zeige die ShipSetup-Komponente
-  if (gameState.setupPhase) {
-    return <ShipSetup onComplete={handleSetupComplete} />;
-  }
+  // Die handleCellClick-Funktion aktualisieren, um Treffer sofort anzuzeigen
+  const handleCellClick = async (row: number, col: number) => {
+    if (!gameState.isPlayerTurn || gameState.gameOver || gameState.isProcessingMove) return;
 
-// Die handleCellClick-Funktion aktualisieren, um Treffer sofort anzuzeigen
-const handleCellClick = async (row: number, col: number) => {
-  if (!gameState.isPlayerTurn || gameState.gameOver || gameState.isProcessingMove) return;
-
-  // Sofortige visuelle Aktualisierung für den Schuss des Spielers erstellen
-  const isHit = gameState.computerBoard[row][col] === 'ship';
-  const immediateState = { ...gameState, isProcessingMove: true };
-  
-  // Eine Kopie des Spielfelds erstellen und die getroffene Zelle sofort aktualisieren
-  immediateState.computerBoard = [...gameState.computerBoard];
-  immediateState.computerBoard[row] = [...gameState.computerBoard[row]];
-  immediateState.computerBoard[row][col] = isHit ? 'hit' : 'miss';
-  
-  // UI sofort aktualisieren, bevor die vollständige Zugslogik verarbeitet wird
-  setGameState(immediateState);
-  
-  // Dann die komplette Zugslogik verarbeiten
-  const newState = await handlePlayerMove(gameState, row, col);
-  setGameState(newState);
-  
-  // Computeraktion nach einer Verzögerung ausführen, wenn der Computer am Zug ist
-  if (!newState.gameOver && !newState.isPlayerTurn) {
-    const delayTime = 1500; // 1,5 Sekunden Verzögerung
+    // Sofortige visuelle Aktualisierung für den Schuss des Spielers erstellen
+    const isHit = gameState.computerBoard[row][col] === 'ship';
+    const immediateState = { ...gameState, isProcessingMove: true };
     
-    setTimeout(async () => {
-      const computerMoveState = await handleComputerMove(newState);
-      setGameState(computerMoveState);
-    }, delayTime);
-  }
-};
+    // Eine Kopie des Spielfelds erstellen und die getroffene Zelle sofort aktualisieren
+    immediateState.computerBoard = [...gameState.computerBoard];
+    immediateState.computerBoard[row] = [...gameState.computerBoard[row]];
+    immediateState.computerBoard[row][col] = isHit ? 'hit' : 'miss';
+    
+    // UI sofort aktualisieren, bevor die vollständige Zugslogik verarbeitet wird
+    setGameState(immediateState);
+    
+    // Dann die komplette Zugslogik verarbeiten
+    const newState = await handlePlayerMove(gameState, row, col);
+    setGameState(newState);
+    
+    // Computeraktion nach einer Verzögerung ausführen, wenn der Computer am Zug ist
+    if (!newState.gameOver && !newState.isPlayerTurn) {
+      const delayTime = 1500; // 1,5 Sekunden Verzögerung
+      
+      setTimeout(async () => {
+        const computerMoveState = await handleComputerMove(newState);
+        setGameState(computerMoveState);
+      }, delayTime);
+    }
+  };
 
   const renderCell = (cellState: CellState, row: number, col: number, isPlayerBoard: boolean) => {
     let cellClass = 'cell ';
@@ -156,62 +152,72 @@ const handleCellClick = async (row: number, col: number) => {
     });
   };
 
+  // Wenn wir in der Setup-Phase sind, zeige die ShipSetup-Komponente
+  if (gameState.setupPhase) {
+    return <ShipSetup onComplete={handleSetupComplete} />;
+  }
+
   // Bestimme, welches Spielfeld angezeigt werden soll
   const activeBoard = gameState.isPlayerTurn ? gameState.computerBoard : gameState.playerBoard;
   const isPlayerActive = gameState.isPlayerTurn;
 
   return (
-    <div className="game-container">
-      <div className="header">
-        <h1>Battleship Game</h1>
-      </div>
-      
-      <div className="status-bar">
-        <div>Schüsse: {gameState.shots}</div>
-        <div>Verbleibende Schüsse: {gameState.remainingShots}</div>
-        {gameState.bestScore !== null && <div>Bestleistung: {gameState.bestScore}</div>}
-        {gameState.gameOver && gameState.winner && (
-          <div><strong>{gameState.winner === 'player' ? "Du hast gewonnen!" : "Der Computer hat gewonnen!"}</strong></div>
-        )}
-      </div>
-      
-      <div className="instructions-container">
-        <button 
-          className="instructions-toggle"
-          onClick={() => setShowInstructions(!showInstructions)}
-        >
-          <span className="material-icons">help</span>
-        </button>
-        {showInstructions && (
-          <div className="instructions">
-            <p><strong>So spielst du:</strong></p>
-            <p>Klicke auf das Computer-Brett, um darauf zu schießen.</p>
-            <p>Du hast {gameState.remainingShots} Schüsse pro Runde!</p>
-            <p>Triff alle Schiffe des Computers, bevor er deine Schiffe versenkt!</p>
-          </div>
-        )}
-      </div>
-      
-      <div className="game-boards">
-        <div className="board-container">
-          <h2 className="board-title">
-            {isPlayerActive ? "Computer-Spielfeld" : "Dein Spielfeld"}
-            {!gameState.gameOver && (
-              <div className="turn-indicator">
-                {isPlayerActive ? "Du bist dran!" : "Der Computer ist dran!"}
-              </div>
-            )}
-          </h2>
-          <div className="board-wrapper">
-            {renderBoard(activeBoard, !isPlayerActive)}
+    <div className="App">
+      <SoundToggle />
+      <div className="game-container">
+        <div className="header">
+          <h1>Battleship Game</h1>
+        </div>
+        
+        <div className="status-bar">
+          <div>Schüsse: {gameState.shots}</div>
+          <div>Verbleibende Schüsse: {gameState.remainingShots}</div>
+          {gameState.bestScore !== null && <div>Bestleistung: {gameState.bestScore}</div>}
+          {gameState.gameOver && gameState.winner && (
+            <div><strong>{gameState.winner === 'player' ? "Du hast gewonnen!" : "Der Computer hat gewonnen!"}</strong></div>
+          )}
+          {/* Statusmeldung hier */}
+          <div className="status-message"><p>{gameState.message}</p></div>
+        </div>
+        
+        <div className="instructions-container">
+          <button 
+            className="instructions-toggle"
+            onClick={() => setShowInstructions(!showInstructions)}
+          >
+            <span className="material-icons">help</span>
+          </button>
+          {showInstructions && (
+            <div className="instructions">
+              <p><strong>So spielst du:</strong></p>
+              <p>Klicke auf das Computer-Brett, um darauf zu schießen.</p>
+              <p>Du hast {gameState.remainingShots} Schüsse pro Runde!</p>
+              <p>Triff alle Schiffe des Computers, bevor er deine Schiffe versenkt!</p>
+            </div>
+          )}
+        </div>
+        
+        <div className="game-boards">
+          <div className="board-container">
+            <h2 className="board-title">
+              {isPlayerActive ? "Computer-Spielfeld" : "Dein Spielfeld"}
+              {!gameState.gameOver && (
+                <div className="turn-indicator">
+                  {isPlayerActive ? "Du bist dran!" : "Der Computer ist dran!"}
+                </div>
+              )}
+            </h2>
+            <div className="board-wrapper">
+              {renderBoard(activeBoard, !isPlayerActive)}
+            </div>
           </div>
         </div>
-      </div>
-      
-      <div style={{ textAlign: 'center' }}>
-        <button className="new-game-button" onClick={startNewGame}>
-          Spiel neu starten
-        </button>
+        
+        <div style={{ textAlign: 'center' }}>
+          <button className="new-game-button" onClick={startNewGame}>
+            Spiel neu starten
+          </button>
+        </div>
       </div>
     </div>
   );

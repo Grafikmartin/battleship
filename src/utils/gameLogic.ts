@@ -1,11 +1,14 @@
 // ============================
 //  gameLogic.ts
 // ============================
-import { GameState, GameBoard, Ship, CellState } from '../types';
+import { GameState, GameBoard, Ship, CellState } from '../types'; // NICHT '../types/index', sondern '../types'
+
 import playerShotSound from '../assets/sounds/cannon-shot.mp3';
 import computerShotSound from '../assets/sounds/shot_KI.mp3';
 import hitSound from '../assets/sounds/Treffer.mp3';
 import sinkSound from '../assets/sounds/untergang.mp3';
+import { SHIP_NAMES, MESSAGES } from '../constants/messages';
+import SoundManager from './soundManager';
 
 const BOARD_SIZE = 10;
 const SHIPS = [
@@ -138,9 +141,6 @@ const placeShip = (
 };
 
 // Platziert alle Schiffe auf dem Board
-// Ersetze die placeShips-Funktion durch diese korrigierte Version
-
-// Platziert alle Schiffe auf dem Board
 const placeShips = (board: GameBoard): Ship[] => {
   const ships: Ship[] = [];
   console.log("Starte Schiffsplatzierung...");
@@ -149,8 +149,8 @@ const placeShips = (board: GameBoard): Ship[] => {
   const shipsToBePlaced = [
     { length: 5, name: "Schlachtschiff" },
     { length: 4, name: "Kreuzer" },
-    { length: 3, name: "Zerstörer 1" },
-    { length: 3, name: "Zerstörer 2" },
+    { length: 3, name: "Fregatte 1" },
+    { length: 3, name: "Fregatte 2" },
     { length: 2, name: "U-Boot" }
   ];
   
@@ -274,6 +274,7 @@ export const initializeGame = (): GameState => {
     lastHit: null,
     isProcessingMove: false,
     setupPhase: true,
+    message: MESSAGES.readyToFire, // Startmeldung setzen
   };
 };
 
@@ -301,6 +302,9 @@ export const handlePlayerMove = async (gameState: GameState, row: number, col: n
   newGameState.computerBoard[row] = [...gameState.computerBoard[row]];
   newGameState.computerBoard[row][col] = isHit ? 'hit' : 'miss';
 
+  // Setze Nachricht basierend auf Trefferstatus
+  newGameState.message = isHit ? MESSAGES.hit : MESSAGES.miss;
+
   try {
     await playSound(PLAYER_SHOT_SOUND);
     if (isHit) {
@@ -324,6 +328,11 @@ export const handlePlayerMove = async (gameState: GameState, row: number, col: n
             updatedShip.positions.forEach(([r, c]) => {
               newGameState.computerBoard[r][c] = 'sunk';
             });
+            
+            // Nachricht für versenktes Schiff setzen
+            const shipType = SHIP_NAMES[updatedShip.length];
+            newGameState.message = MESSAGES.playerSunkShip(shipType);
+            
             try {
               await playSound(SINK_SOUND);
             } catch (error) {
@@ -341,6 +350,8 @@ export const handlePlayerMove = async (gameState: GameState, row: number, col: n
   if (allComputerShipsSunk) {
     newGameState.gameOver = true;
     newGameState.winner = 'player';
+    // Gewinnmeldung setzen
+    newGameState.message = MESSAGES.playerWon;
 
     try {
       if (newGameState.bestScore === null || newGameState.shots < newGameState.bestScore) {
@@ -353,6 +364,11 @@ export const handlePlayerMove = async (gameState: GameState, row: number, col: n
   } else if (newGameState.remainingShots === 0) {
     newGameState.isPlayerTurn = false;
     newGameState.computerRemainingShots = 3;
+    // Computerzug-Meldung setzen
+    newGameState.message = MESSAGES.computerTurn;
+  } else {
+    // Zeige an, wie viele Schüsse noch übrig sind
+    newGameState.message = `${newGameState.message} Noch ${newGameState.remainingShots} Schüsse übrig.`;
   }
 
   newGameState.isProcessingMove = false;
@@ -573,6 +589,11 @@ const processComputerShot = async (gameState: GameState): Promise<GameState> => 
             updatedShip.positions.forEach(([r, c]) => {
               newGameState.playerBoard[r][c] = 'sunk';
             });
+            
+            // Nachricht für versenktes Schiff
+            const shipType = SHIP_NAMES[updatedShip.length];
+            newGameState.message = MESSAGES.computerSunkShip(shipType);
+            
             try {
               await playSound(SINK_SOUND);
             } catch (err) {
@@ -580,9 +601,6 @@ const processComputerShot = async (gameState: GameState): Promise<GameState> => 
             }
 
             // Wenn das Schiff versenkt ist, resetten wir den AI-State
-            // (Im einfachsten Fall, weil wir annehmen, dass es nur EIN Schiff gab,
-            //  das gerade verfolgt wurde. Wenn du mehrere "angeknabberte" Schiffe
-            //  gleichzeitig verfolgen möchtest, brauchst du mehr Logik.)
             resetAIState();
           }
           break;
@@ -597,6 +615,8 @@ const processComputerShot = async (gameState: GameState): Promise<GameState> => 
   if (allPlayerShipsSunk) {
     newGameState.gameOver = true;
     newGameState.winner = 'computer';
+    // Niederlage-Nachricht
+    newGameState.message = MESSAGES.computerWon;
   }
 
   // Schuss-Anzahl für Computer runterzählen
@@ -634,6 +654,8 @@ export const handleComputerMove = async (gameState: GameState): Promise<GameStat
         newGameState.isPlayerTurn = true;
         newGameState.remainingShots = 3;
         newGameState.computerTarget = null;
+        // Nachricht für Spielerzug
+        newGameState.message = `${MESSAGES.yourTurn}${newGameState.remainingShots}`;
       }
     }
   }

@@ -43,4 +43,13 @@ export type GameState = {
   
   // Neue Properties für die Schiffsplatzierung
   setupPhase?: boolean;
+  
+  // Nachrichtenfeld für Statusmeldungen
+  message: string;
 };
+
+// Entferne diese doppelte Definition:
+// export interface GameState {
+//   // ...vorhandene Eigenschaften
+//   message: string;
+// }
