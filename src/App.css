@@ -261,28 +261,42 @@
   color: white;
   font-weight: bold;
 }
-.sound-toggle {
+/* Position der Buttons oben rechts */
+/* Position der Buttons oben rechts */
+.sound-toggle, 
+.instructions-toggle {
   position: absolute;
   top: 10px;
-  right: 60px; /* neben dem Fragezeichen */
   background: none;
   border: none;
   font-size: 24px;
   color: white;
   cursor: pointer;
   z-index: 1000;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
 }
 
-.sound-toggle:hover {
-  opacity: 0.8;
+.sound-toggle:hover,
+.instructions-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
-.status-message {
-  background-color: rgba(0, 0, 0, 0.7);
-  color: white;
-  padding: 10px 15px;
-  border-radius: 5px;
-  font-weight: bold;
-  margin: 10px 0;
-  text-align: center;
+/* Sound-Toggle links */
+.sound-toggle {
+  right: 60px;
+}
+
+/* Fragezeichen-Button rechts */
+.instructions-toggle {
+  right: 10px;
+}
+
+/* Icons für die Material Symbols */
+.material-symbols-outlined {
+  font-size: 24px;
 }

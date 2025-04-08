@@ -1,7 +1,6 @@
 // battleship/src/App.tsx
 import React, { useState, useEffect } from 'react';
 import Game from './components/Game';
-import SoundToggle from './components/SoundToggle';
 import { initializeGame, handlePlayerMove, handleComputerMove } from './utils/gameLogic';
 import { GameState, CellState, Ship, GameBoard } from './types';
 import { ShipSetup } from './components/ShipSetup';
@@ -29,6 +28,40 @@ function App() {
     };
   }, []);
 
+  // Inline Sound Toggle statt externe Komponente
+  const SimpleSoundToggle = () => {
+    const [muted, setMuted] = useState(() => {
+      // Lese den initialen Status aus dem localStorage
+      const savedState = localStorage.getItem('soundEnabled');
+      return savedState === 'false'; // Wenn 'false', dann ist Sound deaktiviert
+    });
+    
+    return (
+      <button 
+        style={{
+          position: 'absolute', 
+          top: '10px', 
+          right: '60px',
+          background: 'black',
+          color: 'white',
+          padding: '8px 12px',
+          borderRadius: '50%',
+          border: '2px solid white',
+          fontWeight: 'bold',
+          zIndex: 1000
+        }}
+        onClick={() => {
+          const newMuted = !muted;
+          setMuted(newMuted);
+          localStorage.setItem('soundEnabled', (!newMuted).toString());
+          console.log("Sound changed to:", newMuted ? "muted" : "unmuted");
+        }}
+      >
+        {muted ? '🔇' : '🔊'}
+      </button>
+    );
+  };
+  
   const handleSetupComplete = (playerBoard: GameBoard, playerShips: Ship[]) => {
     // Initialisiere das Spiel mit den vom Spieler platzierten Schiffen
     const initialState = initializeGame();
@@ -163,7 +196,7 @@ function App() {
 
   return (
     <div className="App">
-      <SoundToggle />
+      <SimpleSoundToggle />
       <div className="game-container">
         <div className="header">
           <h1>Battleship Game</h1>
@@ -185,7 +218,7 @@ function App() {
             className="instructions-toggle"
             onClick={() => setShowInstructions(!showInstructions)}
           >
-            <span className="material-icons">help</span>
+            <span className="material-symbols-outlined">help</span>
           </button>
           {showInstructions && (
             <div className="instructions">
