@@ -73,6 +73,7 @@ export const createEmptyBoard = (): GameBoard => {
     .map(() => Array(BOARD_SIZE).fill('water'));
 };
 
+// Prüft, ob ein Schiff an einer bestimmten Position platziert werden kann
 const canPlaceShip = (
   board: GameBoard,
   row: number,
@@ -80,24 +81,43 @@ const canPlaceShip = (
   length: number,
   horizontal: boolean
 ): boolean => {
+  // Debug-Log
+  console.log(`Prüfe Position [${row},${col}], Länge ${length}, horizontal: ${horizontal}`);
+  
+  // 1. Prüfe, ob das Schiff im Spielfeld bleibt
   if (horizontal) {
-    if (col + length > BOARD_SIZE) return false;
+    if (col + length > BOARD_SIZE) {
+      console.log(`  - Außerhalb des Spielfelds (horizontal)`);
+      return false;
+    }
   } else {
-    if (row + length > BOARD_SIZE) return false;
+    if (row + length > BOARD_SIZE) {
+      console.log(`  - Außerhalb des Spielfelds (vertikal)`);
+      return false;
+    }
   }
 
-  // Check, ob benachbarte Felder (inkl. Diagonalen) frei sind
-  for (let r = Math.max(0, row - 1); r <= Math.min(BOARD_SIZE - 1, row + (horizontal ? 1 : length)); r++) {
-    for (let c = Math.max(0, col - 1); c <= Math.min(BOARD_SIZE - 1, col + (horizontal ? length : 1)); c++) {
-      if (board[r][c] === 'ship') {
-        return false;
+  // 2. Prüfe jedes Feld und seinen Umkreis (Abstand 1)
+  for (let i = 0; i < length; i++) {
+    const shipRow = horizontal ? row : row + i;
+    const shipCol = horizontal ? col + i : col;
+    
+    // Prüfe 3x3-Umkreis um die aktuelle Position
+    for (let r = Math.max(0, shipRow - 1); r <= Math.min(BOARD_SIZE - 1, shipRow + 1); r++) {
+      for (let c = Math.max(0, shipCol - 1); c <= Math.min(BOARD_SIZE - 1, shipCol + 1); c++) {
+        if (board[r][c] === 'ship') {
+          console.log(`  - Kollision mit existierendem Schiff bei [${r},${c}]`);
+          return false;
+        }
       }
     }
   }
 
+  console.log(`  + Position ist gültig!`);
   return true;
 };
 
+// Platziert ein Schiff auf dem Spielbrett und gibt die Positionen zurück
 const placeShip = (
   board: GameBoard,
   row: number,
@@ -117,26 +137,100 @@ const placeShip = (
   return positions;
 };
 
+// Platziert alle Schiffe auf dem Board
+// Ersetze die placeShips-Funktion durch diese korrigierte Version
+
+// Platziert alle Schiffe auf dem Board
 const placeShips = (board: GameBoard): Ship[] => {
   const ships: Ship[] = [];
-
-  SHIPS.forEach(({ length, count }) => {
-    for (let i = 0; i < count; i++) {
-      let placed = false;
-      while (!placed) {
-        const horizontal = Math.random() < 0.5;
-        const row = Math.floor(Math.random() * BOARD_SIZE);
-        const col = Math.floor(Math.random() * BOARD_SIZE);
-
-        if (canPlaceShip(board, row, col, length, horizontal)) {
-          const positions = placeShip(board, row, col, length, horizontal);
-          ships.push({ length, positions, hits: 0, isSunk: false });
-          placed = true;
+  console.log("Starte Schiffsplatzierung...");
+  
+  // Definiere explizit jedes Schiff einzeln, damit die genaue Anzahl garantiert ist
+  const shipsToBePlaced = [
+    { length: 5, name: "Schlachtschiff" },
+    { length: 4, name: "Kreuzer" },
+    { length: 3, name: "Zerstörer 1" },
+    { length: 3, name: "Zerstörer 2" },
+    { length: 2, name: "U-Boot" }
+  ];
+  
+  // Sortiere nach Größe (größte zuerst)
+  shipsToBePlaced.sort((a, b) => b.length - a.length);
+  
+  // Platziere jedes Schiff einzeln
+  for (const ship of shipsToBePlaced) {
+    console.log(`Platziere ${ship.name} (Länge ${ship.length})`);
+    
+    let placed = false;
+    let attempts = 0;
+    const maxAttempts = 1000;
+    
+    while (!placed && attempts < maxAttempts) {
+      const horizontal = Math.random() < 0.5;
+      const row = Math.floor(Math.random() * BOARD_SIZE);
+      const col = Math.floor(Math.random() * BOARD_SIZE);
+      
+      if (canPlaceShip(board, row, col, ship.length, horizontal)) {
+        // Platziere Schiff
+        const positions = placeShip(board, row, col, ship.length, horizontal);
+        ships.push({ 
+          length: ship.length, 
+          positions, 
+          hits: 0, 
+          isSunk: false 
+        });
+        
+        placed = true;
+        console.log(`    ✓ ${ship.name} platziert an [${row},${col}], horizontal: ${horizontal}`);
+        
+        // Board-Zustand visualisieren (für Debugging)
+        let boardState = '';
+        for (let r = 0; r < BOARD_SIZE; r++) {
+          let rowStr = '';
+          for (let c = 0; c < BOARD_SIZE; c++) {
+            rowStr += board[r][c] === 'ship' ? '■ ' : '□ ';
+          }
+          boardState += rowStr + '\n';
+        }
+        console.log(boardState);
+      }
+      
+      attempts++;
+    }
+    
+    // Wenn ein Schiff nicht platziert werden konnte
+    if (!placed) {
+      console.error(`❌ Konnte ${ship.name} nicht platzieren nach ${maxAttempts} Versuchen!`);
+      console.log("Setze Board zurück und starte von vorne...");
+      
+      // Board zurücksetzen
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+          board[r][c] = 'water';
         }
       }
+      
+      // Alle bisherigen Schiffe entfernen
+      ships.length = 0;
+      
+      // Gesamte Funktion neu starten durch Rekursion
+      return placeShips(board);
     }
+  }
+  
+  console.log(`Schiffsplatzierung erfolgreich abgeschlossen: ${ships.length} Schiffe platziert`);
+  
+  // Prüfe die Endgültige Konfiguration
+  const counts = {};
+  ships.forEach(ship => {
+    counts[ship.length] = (counts[ship.length] || 0) + 1;
   });
-
+  
+  console.log("Finale Schiffskonfiguration:");
+  Object.entries(counts).forEach(([length, count]) => {
+    console.log(`Schiffe der Länge ${length}: ${count}`);
+  });
+  
   return ships;
 };
 

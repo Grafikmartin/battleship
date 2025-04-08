@@ -45,23 +45,36 @@ function App() {
     return <ShipSetup onComplete={handleSetupComplete} />;
   }
 
-  const handleCellClick = async (row: number, col: number) => {
-    if (!gameState.isPlayerTurn || gameState.gameOver || gameState.isProcessingMove) return;
+// Die handleCellClick-Funktion aktualisieren, um Treffer sofort anzuzeigen
+const handleCellClick = async (row: number, col: number) => {
+  if (!gameState.isPlayerTurn || gameState.gameOver || gameState.isProcessingMove) return;
+
+  // Sofortige visuelle Aktualisierung für den Schuss des Spielers erstellen
+  const isHit = gameState.computerBoard[row][col] === 'ship';
+  const immediateState = { ...gameState, isProcessingMove: true };
   
-    // Handle player's move
-    const newState = await handlePlayerMove(gameState, row, col);
-    setGameState(newState);
+  // Eine Kopie des Spielfelds erstellen und die getroffene Zelle sofort aktualisieren
+  immediateState.computerBoard = [...gameState.computerBoard];
+  immediateState.computerBoard[row] = [...gameState.computerBoard[row]];
+  immediateState.computerBoard[row][col] = isHit ? 'hit' : 'miss';
+  
+  // UI sofort aktualisieren, bevor die vollständige Zugslogik verarbeitet wird
+  setGameState(immediateState);
+  
+  // Dann die komplette Zugslogik verarbeiten
+  const newState = await handlePlayerMove(gameState, row, col);
+  setGameState(newState);
+  
+  // Computeraktion nach einer Verzögerung ausführen, wenn der Computer am Zug ist
+  if (!newState.gameOver && !newState.isPlayerTurn) {
+    const delayTime = 1500; // 1,5 Sekunden Verzögerung
     
-    // Handle computer's move after a delay if it's the computer's turn
-    if (!newState.gameOver && !newState.isPlayerTurn) {
-      const delayTime = 1500; // 1.5 Sekunden Verzögerung nach dem dritten Schuss
-      
-      setTimeout(async () => {
-        const computerMoveState = await handleComputerMove(newState);
-        setGameState(computerMoveState);
-      }, delayTime);
-    }
-  };
+    setTimeout(async () => {
+      const computerMoveState = await handleComputerMove(newState);
+      setGameState(computerMoveState);
+    }, delayTime);
+  }
+};
 
   const renderCell = (cellState: CellState, row: number, col: number, isPlayerBoard: boolean) => {
     let cellClass = 'cell ';
